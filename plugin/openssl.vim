@@ -1,5 +1,15 @@
 " openssl.vim version 3.3 2008 Noah Spurrier <noah@noah.org>
 "
+" == Changelog
+"
+" 3.3~fc1
+"
+"   • simple password safe can be either .auth.aes or .auth.bfa
+"
+" 3.3
+"
+"   • change simple password safe from .auth.bfa to .auth.aes
+"
 " == Edit OpenSSL encrypted files and turn Vim into a Password Safe! ==
 "
 " This plugin enables reading and writing of files encrypted using OpenSSL.
@@ -23,9 +33,9 @@
 "
 " == Simple Vim Password Safe ==
 "
-" If you edit any file named '.auth.aes' (that's the full name, not just the
-" extension) then this plugin will add folding features and an automatic quit
-" timeout.
+" If you edit any file named '.auth.aes' or '.auth.bfa' (that's the full name,
+" not just the extension) then this plugin will add folding features and an
+" automatic quit timeout.
 "
 " Vim will quit automatically after 5 minutes of no typing activity (unless
 " the file has been changed).
@@ -228,8 +238,8 @@ autocmd BufWritePost,FileWritePost *.des3,*.des,*.bf,*.bfa,*.aes,*.idea,*.cast,*
 
 "
 " The following implements a simple password safe for any file named
-" '.auth.aes'. The file is encrypted with AES and base64 ASCII encoded.
-" Folding is supported for == headlines == style lines.
+" '.auth.aes' or '.auth.bfa'. The file is encrypted with AES and base64 ASCII
+" encoded.  Folding is supported for == headlines == style lines.
 "
 
 function! HeadlineDelimiterExpression(lnum)
@@ -238,16 +248,16 @@ function! HeadlineDelimiterExpression(lnum)
     endif
     return (getline(a:lnum)=~"^\\s*==.*==\\s*$") ? ">1" : "="
 endfunction
-autocmd BufReadPost,FileReadPost   .auth.aes set foldexpr=HeadlineDelimiterExpression(v:lnum)
-autocmd BufReadPost,FileReadPost   .auth.aes set foldlevel=0
-autocmd BufReadPost,FileReadPost   .auth.aes set foldcolumn=0
-autocmd BufReadPost,FileReadPost   .auth.aes set foldmethod=expr
-autocmd BufReadPost,FileReadPost   .auth.aes set foldtext=getline(v:foldstart)
-autocmd BufReadPost,FileReadPost   .auth.aes nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
-autocmd BufReadPost,FileReadPost   .auth.aes nnoremap <silent>q :q<CR>
-autocmd BufReadPost,FileReadPost   .auth.aes highlight Folded ctermbg=red ctermfg=black
-autocmd BufReadPost,FileReadPost   .auth.aes set updatetime=300000
-autocmd CursorHold                 .auth.aes quit
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldexpr=HeadlineDelimiterExpression(v:lnum)
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldlevel=0
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldcolumn=0
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldmethod=expr
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldtext=getline(v:foldstart)
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} nnoremap <silent>q :q<CR>
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} highlight Folded ctermbg=red ctermfg=black
+autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set updatetime=300000
+autocmd CursorHold                 .auth.{aes,bfa} quit
 
 " End of openssl_encrypted
 augroup END
