@@ -65,18 +65,18 @@
 " password information put the cursor on the headline and press SPACE. When
 " you write an encrypted file a backup will automatically be made.
 "
-" FIXME This plugin can also make a backup of an encrypted file before writing
-" FIXME changes. This helps guard against the situation where you may edit a file
-" FIXME and write changes with the wrong password. You can still go back to the
-" FIXME previous backup version. The backup file will have the same name as the
-" FIXME original file with .bak appended. For example:
+" This plugin can also make a backup of an encrypted file before writing
+" changes. This helps guard against the situation where you may edit a file
+" and write changes with the wrong password. You can still go back to the
+" previous backup version. The backup file will have the same name as the
+" original file with .bak before the original extension. For example:
 "
-" FIXME     .auth.aes  -->  .auth.aes.bak
-" FIXME
-" FIXME Backups are NOT made by default. To turn on backups put the following global
-" FIXME definition in your .vimrc file:
-" FIXME
-" FIXME     let g:openssl_backup = 1
+"     .auth.aes  -->  .auth.bak.aes
+"
+" Backups are NOT made by default. To turn on backups put the following global
+" definition in your .vimrc file:
+"
+"     let g:openssl_backup = 1
 "
 " Thanks to Tom Purl for the original des3 tip.
 "
@@ -160,13 +160,12 @@ function! s:OpenSSLWritePre()
     set shell=/bin/sh
     set bin
 
-    " FIXME: I think there is a bug in Vim... dont' use this.
-"    if !exists("g:openssl_backup")
-"        let g:openssl_backup=0
-"    endif
-"    if (g:openssl_backup)
-"        silent! execute '!cp % %.bak'
-"    endif
+    if !exists("g:openssl_backup")
+        let g:openssl_backup=0
+    endif
+    if (g:openssl_backup)
+        silent! execute '!cp % %:r.bak.%:e'
+    endif
 
     " Most file extensions can be used as the cipher name, but
     " a few  need a little cosmetic cleanup. AES could be any flavor,
