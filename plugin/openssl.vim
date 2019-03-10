@@ -138,112 +138,58 @@ function! s:OpenSSLReadPost()
     silent! execute l:expr
     let l:success = ! v:shell_error
 
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      let l:opts = "-pbkdf2 -salt"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
+    function! s:AttemptDecrypt(opts) closure
+      if ! l:success
+        execute "0,$d"
+        execute "normal i". l:a
+        let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
+        " Replace the password with the decrypted file.
+        silent! execute l:expr
+        let l:success = ! v:shell_error
+      endif
+    endfunction
 
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      let l:opts = "-salt -md md5 -pbkdf2 -a"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
+    " Be explicit about the current OpenSSL default of sha256.
+    call s:AttemptDecrypt("-pbkdf2 -salt -a -md sha256")
+    call s:AttemptDecrypt("-pbkdf2 -salt -md sha256")
+    call s:AttemptDecrypt("-pbkdf2 -salt -a -md md5")
+    call s:AttemptDecrypt("-pbkdf2 -salt -md md5")
 
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      let l:opts = "-salt -md md5 -pbkdf2"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
-
+    " The following is only ne
     if ! l:success
       " For the rest of these, might need to filter out the warning
-      " about not using -pbkdf2.
+      " about not using -pbkdf2, which looks like
+      "     *** WARNING : deprecated key derivation used.
+      "     Using -iter or -pbkdf2 would be better.
       let l:outputEncrypted = "2,$!cat " . expand("%")
       execute "0,$d"
       silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
       if ! v:shell_error
         let l:outputEncrypted = l:outputEncrypted . " | tail +3"
       endif
-
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      silent! execute l:outputEncrypted
-      let l:opts = "-salt -a"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
     endif
 
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      silent! execute l:outputEncrypted
-      let l:opts = "-salt"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
+    function! s:AttemptDecryptWithFilter(opts) closure
+      if ! l:success
+        execute "0,$d"
+        execute "normal i". l:a
+        execute "normal o"
+        silent! execute l:outputEncrypted
+        let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin"
+        " Replace the password and encrypted file with the decrypted file.
+        silent! execute l:expr
+        let l:success = ! v:shell_error
+      endif
+    endfunction
 
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      silent! execute l:outputencrypted
-      let l:opts = "-salt -md md5 -a"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
-      " replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
-
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      let l:opts = "-salt -md md5"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
-
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
-
-    if ! l:success
-      execute "0,$d"
-      execute "normal i". l:a
-      execute "normal o"
-      let l:opts = "-nosalt -md md5"
-      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
-      " Replace the password with the decrypted file.
-      silent! execute l:expr
-      let l:success = ! v:shell_error
-    endif
+    call s:AttemptDecryptWithFilter("-salt -a -md sha256")
+    call s:AttemptDecryptWithFilter("-salt -md sha256")
+    call s:AttemptDecryptWithFilter("-salt -a -md md5")
+    call s:AttemptDecryptWithFilter("-salt -md md5")
+    " Don't bother with -nosalt and -md sha256 because those defaults
+    " never existed together in OpenSSL.
+    call s:AttemptDecryptWithFilter("-nosalt -a -md md5")
+    call s:AttemptDecryptWithFilter("-nosalt -md md5")
 
     " Cleanup.
     let l:a="These are not the droids you're looking for."
