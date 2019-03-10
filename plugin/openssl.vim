@@ -231,7 +231,9 @@ function! s:OpenSSLWritePre()
         let g:openssl_backup=0
     endif
     if (g:openssl_backup)
-        silent! execute '!cp % %:r.bak.%:e'
+        if filereadable(expand("%"))
+            silent! execute '!cp % %:r.bak.%:e'
+        endif
     endif
 
     " Most file extensions can be used as the cipher name, but
