@@ -116,13 +116,17 @@ function! s:OpenSSLReadPost()
     " Most file extensions can be used as the cipher name, but
     " a few  need a little cosmetic cleanup.
     let l:cipher = expand("%:e")
+    let l:opts = "-pbkdf2 -salt"
     if l:cipher == "aes"
-        let l:cipher = "aes-256-cbc -a"
+        let l:cipher = "aes-256-cbc"
+        let l:opts = l:opts . " -a"
     endif
     if l:cipher == "bfa"
-        let l:cipher = "bf -a"
+        let l:cipher = "bf"
+        let l:opts = l:opts . " -a"
     endif
-    let l:expr = "0,$!openssl " . l:cipher . " -d -salt -pass stdin -in " . expand("%")
+    let l:defaultopts = l:opts
+    let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
 
     set undolevels=-1
     let l:a = inputsecret("Password: ")
