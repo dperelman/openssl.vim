@@ -194,6 +194,11 @@ function! s:OpenSSLWritePre()
         echo "This file has not been saved."
         echo "ERROR -- COULD NOT ENCRYPT"
         echohl None
+        " Clean up because OpenSSLWritePost won't get called.
+        set nobin
+        set shellredir&
+        set shell&
+        set cmdheight&
         throw "Password mismatch. This file has not been saved."
     endif
     silent! execute "0goto"
@@ -206,8 +211,9 @@ function! s:OpenSSLWritePre()
     if v:shell_error
         silent! 0,$y
         " Undo the encryption.
-        silent! undo
-        redraw!
+        call s:OpenSSLWritePost()
+        echohl ErrorMsg
+        echo "\n"
         echo "ERROR -- COULD NOT ENCRYPT"
         echo "Your version of openssl may not have the given"
         echo "cipher engine built-in. This may be true even if"
@@ -216,9 +222,8 @@ function! s:OpenSSLWritePre()
         echo "ERROR FROM OPENSSL:"
         echo @"
         echo "ERROR -- COULD NOT ENCRYPT"
-        echo "Press any key to continue..."
-        let char = getchar()
-        return 1
+        echohl None
+        throw "OpenSSL error. This file has not been saved."
     endif
 endfunction
 
