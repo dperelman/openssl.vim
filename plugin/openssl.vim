@@ -267,7 +267,7 @@ function! s:OpenSSLWritePre()
     if ! l:shouldCheckPassword
         let l:ac = inputsecret("Retype new password: ")
     else
-        " Attempt descrypting the existing file with the encryption
+        " Attempt decrypting the existing file with the encryption
         " password to check if it's the same password.
         let l:decryptExpr = "1" . l:exprBase . " -d -in " . expand("%")
         silent! execute "0goto"
