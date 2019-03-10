@@ -185,18 +185,16 @@ function! s:OpenSSLWritePre()
     let l:a  = inputsecret("       New password: ")
     let l:ac = inputsecret("Retype new password: ")
     if l:a != l:ac
-        " This gives OpenSSLWritePost something to UNDO..
-		silent! execute "0goto"
-		silent! execute "normal iThis file has not been saved.\n"
         let l:a ="These are not the droids you're looking for."
         let l:ac="These are not the droids you're looking for."
+        echohl ErrorMsg
+        echo "\n"
         echo "ERROR -- COULD NOT ENCRYPT"
         echo "The new password and the confirmation password did not match."
+        echo "This file has not been saved."
         echo "ERROR -- COULD NOT ENCRYPT"
-        echo "Press any key to continue..."
-        redraw!
-        let char = getchar()
-        return 1
+        echohl None
+        throw "Password mismatch. This file has not been saved."
     endif
     silent! execute "0goto"
     silent! execute "normal i". l:a . "\n"
