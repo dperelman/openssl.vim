@@ -127,6 +127,7 @@ function! s:OpenSSLReadPost()
     endif
     let l:defaultopts = l:opts
     let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+    let l:defaultexpr = l:expr
 
     set undolevels=-1
     let l:a = inputsecret("Password: ")
@@ -135,23 +136,134 @@ function! s:OpenSSLReadPost()
     execute "normal i". l:a
     " Replace the password with the decrypted file.
     silent! execute l:expr
+    let l:success = ! v:shell_error
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      let l:opts = "-pbkdf2 -salt"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      let l:opts = "-salt -md md5 -pbkdf2 -a"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      let l:opts = "-salt -md md5 -pbkdf2"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      " For the rest of these, might need to filter out the warning
+      " about not using -pbkdf2.
+      let l:outputEncrypted = "2,$!cat " . expand("%")
+      execute "0,$d"
+      silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
+      if ! v:shell_error
+        let l:outputEncrypted = l:outputEncrypted . " | tail +3"
+      endif
+
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      silent! execute l:outputEncrypted
+      let l:opts = "-salt -a"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      silent! execute l:outputEncrypted
+      let l:opts = "-salt"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      silent! execute l:outputencrypted
+      let l:opts = "-salt -md md5 -a"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin"
+      " replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      let l:opts = "-salt -md md5"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
+    if ! l:success
+      execute "0,$d"
+      execute "normal i". l:a
+      execute "normal o"
+      let l:opts = "-nosalt -md md5"
+      let l:expr = "0,$!openssl " . l:cipher . " " . l:opts . " -d -pass stdin -in " . expand("%")
+      " Replace the password with the decrypted file.
+      silent! execute l:expr
+      let l:success = ! v:shell_error
+    endif
+
     " Cleanup.
     let l:a="These are not the droids you're looking for."
+    unlet l:a
     set undolevels&
     redraw!
-    if v:shell_error
+    if ! l:success
         silent! 0,$y
         silent! undo
+        execute "0,$d"
         redraw!
+        echohl ErrorMsg
         echo "ERROR -- COULD NOT DECRYPT"
         echo "You may have entered the wrong password or"
         echo "your version of openssl may not have the given"
         echo "cipher engine built-in. This may be true even if"
         echo "the cipher is documented in the openssl man pages."
-        echo "DECRYPT EXPRESSION: " . l:expr
-        echo "Press any key to continue..."
-        let char = getchar()
-        return
+        echo "DECRYPT EXPRESSION: " . l:defaultexpr
+        echohl None
+        throw "Unable to decrypt."
     endif
     set nobin
     set cmdheight&
