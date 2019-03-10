@@ -109,6 +109,7 @@ function! s:OpenSSLReadPre()
     set noshelltemp
     set shell=/bin/sh
     set bin
+    set shellredir=>
 endfunction
 
 function! s:OpenSSLReadPost()
@@ -150,6 +151,7 @@ function! s:OpenSSLReadPost()
     endif
     set nobin
     set cmdheight&
+    set shellredir&
     set shell&
     execute ":doautocmd BufReadPost ".expand("%:r")
     redraw!
@@ -159,6 +161,7 @@ function! s:OpenSSLWritePre()
     set cmdheight=3
     set shell=/bin/sh
     set bin
+    set shellredir=>
 
     if !exists("g:openssl_backup")
         let g:openssl_backup=0
@@ -225,6 +228,7 @@ function! s:OpenSSLWritePost()
     " Undo the encryption.
     silent! undo
     set nobin
+    set shellredir&
     set shell&
     set cmdheight&
     redraw!
