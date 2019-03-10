@@ -140,14 +140,14 @@ function! s:OpenSSLReadPost()
     let b:OpenSSLDecryptSuccessful = l:success
 
     function! s:AttemptDecrypt(opts) closure
-      if ! l:success
-        execute "0,$d"
-        execute "normal i". l:a
-        let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
-        " Replace the password with the decrypted file.
-        silent! execute l:expr
-        let l:success = ! v:shell_error
-      endif
+        if ! l:success
+            execute "0,$d"
+            execute "normal i". l:a
+            let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
+            " Replace the password with the decrypted file.
+            silent! execute l:expr
+            let l:success = ! v:shell_error
+        endif
     endfunction
 
     " Be explicit about the current OpenSSL default of sha256.
@@ -158,29 +158,29 @@ function! s:OpenSSLReadPost()
 
     " The following is only ne
     if ! l:success
-      " For the rest of these, might need to filter out the warning
-      " about not using -pbkdf2, which looks like
-      "     *** WARNING : deprecated key derivation used.
-      "     Using -iter or -pbkdf2 would be better.
-      let l:outputEncrypted = "2,$!cat " . expand("%")
-      execute "0,$d"
-      silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
-      if ! v:shell_error
-        let l:outputEncrypted = l:outputEncrypted . " | tail +3"
-      endif
+        " For the rest of these, might need to filter out the warning
+        " about not using -pbkdf2, which looks like
+        "     *** WARNING : deprecated key derivation used.
+        "     Using -iter or -pbkdf2 would be better.
+        let l:outputEncrypted = "2,$!cat " . expand("%")
+        execute "0,$d"
+        silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
+        if ! v:shell_error
+            let l:outputEncrypted = l:outputEncrypted . " | tail +3"
+        endif
     endif
 
     function! s:AttemptDecryptWithFilter(opts) closure
-      if ! l:success
-        execute "0,$d"
-        execute "normal i". l:a
-        execute "normal o"
-        silent! execute l:outputEncrypted
-        let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin"
-        " Replace the password and encrypted file with the decrypted file.
-        silent! execute l:expr
-        let l:success = ! v:shell_error
-      endif
+        if ! l:success
+            execute "0,$d"
+            execute "normal i". l:a
+            execute "normal o"
+            silent! execute l:outputEncrypted
+            let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin"
+            " Replace the password and encrypted file with the decrypted file.
+            silent! execute l:expr
+            let l:success = ! v:shell_error
+        endif
     endfunction
 
     call s:AttemptDecryptWithFilter("-salt -a -md sha256")
