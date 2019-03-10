@@ -194,12 +194,16 @@ function! s:OpenSSLReadPost()
     " Cleanup.
     let l:a="These are not the droids you're looking for."
     unlet l:a
-    set undolevels&
+    set nobin
+    set cmdheight&
+    set shellredir&
+    set shell&
     redraw!
     if ! l:success
         silent! 0,$y
         silent! undo
         execute "0,$d"
+        set undolevels&
         redraw!
         echohl ErrorMsg
         echo "ERROR -- COULD NOT DECRYPT"
@@ -211,11 +215,8 @@ function! s:OpenSSLReadPost()
         echohl None
         throw "Unable to decrypt."
     endif
-    set nobin
-    set cmdheight&
-    set shellredir&
-    set shell&
     execute ":doautocmd BufReadPost ".expand("%:r")
+    set undolevels&
     redraw!
 endfunction
 
