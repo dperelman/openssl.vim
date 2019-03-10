@@ -151,18 +151,6 @@ function! s:OpenSSLReadPost()
         endif
         let l:a = inputsecret("Password: ")
 
-        if l:a == ""
-            " Cleanup.
-            set nobin
-            set cmdheight&
-            set shellredir&
-            set shell&
-            execute "0,$d"
-            set undolevels&
-            redraw!
-            throw "Empty password entered. Ending decryption attempts."
-        endif
-
         " Replace encrypted text with the password to be used for decryption.
         execute "0,$d"
         execute "normal i". l:a
@@ -223,6 +211,20 @@ function! s:OpenSSLReadPost()
         " never existed together in OpenSSL.
         call s:AttemptDecryptWithFilter("-nosalt -a -md md5")
         call s:AttemptDecryptWithFilter("-nosalt -md md5")
+
+        " Don't check for empty password before attempting to decrypt in
+        " order to support decrypting with an empty password.
+        if l:a == "" && ! l:success
+            " Cleanup.
+            set nobin
+            set cmdheight&
+            set shellredir&
+            set shell&
+            execute "0,$d"
+            set undolevels&
+            redraw!
+            throw "Empty password entered. Ending decryption attempts."
+        endif
 
         let l:a="These are not the droids you're looking for."
     endwhile
