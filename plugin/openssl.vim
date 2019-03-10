@@ -132,7 +132,7 @@ function! s:OpenSSLReadPost()
     set undolevels=-1
     let l:success = v:false
     while ! l:success
-        silent! execute "0,$d"
+        silent! execute "0,$d _"
         redraw!
         if exists("l:a")
             echo " "
@@ -152,7 +152,7 @@ function! s:OpenSSLReadPost()
         let l:a = inputsecret("Password: ")
 
         " Replace encrypted text with the password to be used for decryption.
-        execute "0,$d"
+        execute "0,$d _"
         execute "normal i". l:a
         " Replace the password with the decrypted file.
         silent! execute l:expr
@@ -161,7 +161,7 @@ function! s:OpenSSLReadPost()
 
         function! s:AttemptDecrypt(opts) closure
             if ! l:success
-                execute "0,$d"
+                execute "0,$d _"
                 execute "normal i". l:a
                 let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
                 " Replace the password with the decrypted file.
@@ -183,7 +183,7 @@ function! s:OpenSSLReadPost()
             "     *** WARNING : deprecated key derivation used.
             "     Using -iter or -pbkdf2 would be better.
             let l:outputEncrypted = "2,$!cat " . expand("%")
-            execute "0,$d"
+            execute "0,$d _"
             silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
             if ! v:shell_error
                 let l:outputEncrypted = l:outputEncrypted . " | tail +3"
@@ -192,7 +192,7 @@ function! s:OpenSSLReadPost()
 
         function! s:AttemptDecryptWithFilter(opts) closure
             if ! l:success
-                execute "0,$d"
+                execute "0,$d _"
                 execute "normal i". l:a
                 execute "normal o"
                 silent! execute l:outputEncrypted
@@ -220,7 +220,7 @@ function! s:OpenSSLReadPost()
             set cmdheight&
             set shellredir&
             set shell&
-            execute "0,$d"
+            execute "0,$d _"
             set undolevels&
             redraw!
             throw "Empty password entered. Ending decryption attempts."
@@ -291,7 +291,7 @@ function! s:OpenSSLWritePre()
         let l:decryptExpr = "1" . l:exprBase . " -d -in " . expand("%")
         silent! execute "0goto"
         silent! execute "normal i" . l:a . "\n"
-        silent! execute l:decryptExpr
+        silent! execute l:decryptExpr . " >/dev/null 2>/dev/null"
         silent! undo
         if v:shell_error
             echohl WarningMsg
@@ -324,17 +324,37 @@ function! s:OpenSSLWritePre()
         set cmdheight&
         throw "Password mismatch. This file has not been saved."
     endif
+
+    " Encrypt twice, first time take only the error output to capture it.
+    " Then do the actual encryption.
+    silent! execute "0goto"
+    silent! execute "normal i". l:a . "\n"
+    set shellredir=2>
+    silent! execute l:expr . " 2>&1 >/dev/null"
+    set shellredir=>
+    " Backup @" register and restore it afterward.
+    let l:register_tmp = getreg('"', 1, 1)
+    let l:register_tmp_mode = getregtype('"')
+    silent! 0,$y
+    let l:openssl_error = @"
+    call setreg('"', register_tmp, register_tmp_mode)
+    unlet l:register_tmp
+    unlet l:register_tmp_mode
+    silent! undo
+
     silent! execute "0goto"
     silent! execute "normal i". l:a . "\n"
     silent! execute l:expr
+
     " Cleanup.
     let l:a ="These are not the droids you're looking for."
     unlet l:a
     let l:ac="These are not the droids you're looking for."
     unlet l:ac
-    redraw!
     if v:shell_error
-        silent! 0,$y
+        " Something for OpenSSLWritePost() to undo
+        silent! 0,$y _
+
         " Undo the encryption.
         call s:OpenSSLWritePost()
         echohl ErrorMsg
@@ -345,10 +365,25 @@ function! s:OpenSSLWritePre()
         echo "the cipher is documented in the openssl man pages."
         echo "ENCRYPT EXPRESSION: " . expr
         echo "ERROR FROM OPENSSL:"
-        echo @"
+        echo "\n"
+        echo l:openssl_error
+        echo "\n"
         echo "ERROR -- COULD NOT ENCRYPT"
         echohl None
         throw "OpenSSL error. This file has not been saved."
+    endif
+    if l:openssl_error !~ "^[\s\r\n]\*$"
+        redraw!
+        echohl WarningMsg
+        echo "OpenSSL output the following warning:"
+        echo " "
+        echo l:openssl_error
+        echo " "
+        echo "This usually means openssl.vim needs to be updated or modified."
+        echohl None
+        echo "Press any key to continue..."
+        let char = getchar()
+        redraw!
     endif
 endfunction
 
