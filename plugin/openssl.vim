@@ -137,6 +137,7 @@ function! s:OpenSSLReadPost()
     " Replace the password with the decrypted file.
     silent! execute l:expr
     let l:success = ! v:shell_error
+    let b:OpenSSLDecryptSuccessful = l:success
 
     function! s:AttemptDecrypt(opts) closure
       if ! l:success
@@ -243,13 +244,51 @@ function! s:OpenSSLWritePre()
     if l:cipher == "bfa"
         let l:cipher = "bf -a"
     endif
-    let l:expr = "0,$!openssl " . l:cipher . " -e -salt -pass stdin"
+    let l:exprBase = "!openssl " . l:cipher . " -pbkdf2 -salt -pass stdin"
+    let l:expr = "0,$" . l:exprBase . " -e"
 
-    let l:a  = inputsecret("       New password: ")
-    let l:ac = inputsecret("Retype new password: ")
+    let l:shouldCheckPassword = (exists("b:OpenSSLDecryptSuccessful") && b:OpenSSLDecryptSuccessful)
+
+    if ! l:shouldCheckPassword
+        let l:a  = inputsecret("       New password: ")
+    else
+        let l:a  = inputsecret("           Password: ")
+    endif
+    if l:a == ""
+        " Clean up because OpenSSLWritePost won't get called.
+        set nobin
+        set shellredir&
+        set shell&
+        set cmdheight&
+        throw "Empty password. This file has not been saved."
+    endif
+    if ! l:shouldCheckPassword
+        let l:ac = inputsecret("Retype new password: ")
+    else
+        " Attempt descrypting the existing file with the encryption
+        " password to check if it's the same password.
+        let l:decryptExpr = "1" . l:exprBase . " -d -in " . expand("%")
+        silent! execute "0goto"
+        silent! execute "normal i" . l:a . "\n"
+        silent! execute l:decryptExpr
+        silent! undo
+        if v:shell_error
+            echohl WarningMsg
+            echo " "
+            echo "Warning: Password is different from decryption password."
+            echo "If intending to change the encryption password, retype the new password."
+            echo " "
+            echohl None
+            let l:ac = inputsecret("Retype new password: ")
+        else
+            let l:ac = l:a
+        endif
+    endif
     if l:a != l:ac
         let l:a ="These are not the droids you're looking for."
+        unlet l:a
         let l:ac="These are not the droids you're looking for."
+        unlet l:ac
         echohl ErrorMsg
         echo "\n"
         echo "ERROR -- COULD NOT ENCRYPT"
@@ -269,7 +308,9 @@ function! s:OpenSSLWritePre()
     silent! execute l:expr
     " Cleanup.
     let l:a ="These are not the droids you're looking for."
+    unlet l:a
     let l:ac="These are not the droids you're looking for."
+    unlet l:ac
     redraw!
     if v:shell_error
         silent! 0,$y
