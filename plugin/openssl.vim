@@ -358,18 +358,18 @@ function! HeadlineDelimiterExpression(lnum)
     if a:lnum == 1
         return ">1"
     endif
-    return (getline(a:lnum)=~"^\\s*==.*==\\s*$") ? ">1" : "="
+    return (getline(a:lnum)=~"^\\s\\?\\*\\s.*$") || (getline(a:lnum)=~"^\\s*==.*==\\s*$") ? ">1" : "="
 endfunction
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldexpr=HeadlineDelimiterExpression(v:lnum)
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldlevel=0
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldcolumn=0
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldmethod=expr
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set foldtext=getline(v:foldstart)
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} nnoremap <silent>q :q<CR>
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} highlight Folded ctermbg=red ctermfg=black
-autocmd BufReadPost,FileReadPost   .auth.{aes,bfa} set updatetime=300000
-autocmd CursorHold                 .auth.{aes,bfa} quit
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set foldexpr=HeadlineDelimiterExpression(v:lnum)
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set foldlevel=0
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set foldcolumn=0
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set foldmethod=expr
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set foldtext=getline(v:foldstart)
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* nnoremap <silent>q :q<CR>
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* highlight Folded ctermbg=red ctermfg=black
+autocmd BufReadPost,FileReadPost   *.auth.*,logins.* set updatetime=300000
+autocmd CursorHold                 *.auth.*,logins.* quit
 
 " End of openssl_encrypted
 augroup END
