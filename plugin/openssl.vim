@@ -130,92 +130,109 @@ function! s:OpenSSLReadPost()
     let l:defaultexpr = l:expr
 
     set undolevels=-1
-    let l:a = inputsecret("Password: ")
-    " Replace encrypted text with the password to be used for decryption.
-    execute "0,$d"
-    execute "normal i". l:a
-    " Replace the password with the decrypted file.
-    silent! execute l:expr
-    let l:success = ! v:shell_error
-    let b:OpenSSLDecryptSuccessful = l:success
-
-    function! s:AttemptDecrypt(opts) closure
-        if ! l:success
-            execute "0,$d"
-            execute "normal i". l:a
-            let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
-            " Replace the password with the decrypted file.
-            silent! execute l:expr
-            let l:success = ! v:shell_error
+    let l:success = v:false
+    while ! l:success
+        silent! execute "0,$d"
+        redraw!
+        if exists("l:a")
+            echo " "
+            echohl ErrorMsg
+            echo "ERROR -- COULD NOT DECRYPT"
+            echo "You may have entered the wrong password or"
+            echo "your version of openssl may not have the given"
+            echo "cipher engine built-in. This may be true even if"
+            echo "the cipher is documented in the openssl man pages."
+            echo "DECRYPT EXPRESSION: " . l:defaultexpr
+            echohl WarningMsg
+            echo " "
+            echo "Try a different password or leave blank to cancel."
+            echo " "
+            echohl None
         endif
-    endfunction
+        let l:a = inputsecret("Password: ")
 
-    " Be explicit about the current OpenSSL default of sha256.
-    call s:AttemptDecrypt("-pbkdf2 -salt -a -md sha256")
-    call s:AttemptDecrypt("-pbkdf2 -salt -md sha256")
-    call s:AttemptDecrypt("-pbkdf2 -salt -a -md md5")
-    call s:AttemptDecrypt("-pbkdf2 -salt -md md5")
+        if l:a == ""
+            " Cleanup.
+            set nobin
+            set cmdheight&
+            set shellredir&
+            set shell&
+            execute "0,$d"
+            set undolevels&
+            redraw!
+            throw "Empty password entered. Ending decryption attempts."
+        endif
 
-    " The following is only ne
-    if ! l:success
-        " For the rest of these, might need to filter out the warning
-        " about not using -pbkdf2, which looks like
-        "     *** WARNING : deprecated key derivation used.
-        "     Using -iter or -pbkdf2 would be better.
-        let l:outputEncrypted = "2,$!cat " . expand("%")
+        " Replace encrypted text with the password to be used for decryption.
         execute "0,$d"
-        silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
-        if ! v:shell_error
-            let l:outputEncrypted = l:outputEncrypted . " | tail +3"
-        endif
-    endif
+        execute "normal i". l:a
+        " Replace the password with the decrypted file.
+        silent! execute l:expr
+        let l:success = ! v:shell_error
+        let b:OpenSSLDecryptSuccessful = l:success
 
-    function! s:AttemptDecryptWithFilter(opts) closure
+        function! s:AttemptDecrypt(opts) closure
+            if ! l:success
+                execute "0,$d"
+                execute "normal i". l:a
+                let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin -in " . expand("%")
+                " Replace the password with the decrypted file.
+                silent! execute l:expr
+                let l:success = ! v:shell_error
+            endif
+        endfunction
+
+        " Be explicit about the current OpenSSL default of sha256.
+        call s:AttemptDecrypt("-pbkdf2 -salt -a -md sha256")
+        call s:AttemptDecrypt("-pbkdf2 -salt -md sha256")
+        call s:AttemptDecrypt("-pbkdf2 -salt -a -md md5")
+        call s:AttemptDecrypt("-pbkdf2 -salt -md md5")
+
+        " The following is only ne
         if ! l:success
+            " For the rest of these, might need to filter out the warning
+            " about not using -pbkdf2, which looks like
+            "     *** WARNING : deprecated key derivation used.
+            "     Using -iter or -pbkdf2 would be better.
+            let l:outputEncrypted = "2,$!cat " . expand("%")
             execute "0,$d"
-            execute "normal i". l:a
-            execute "normal o"
-            silent! execute l:outputEncrypted
-            let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin"
-            " Replace the password and encrypted file with the decrypted file.
-            silent! execute l:expr
-            let l:success = ! v:shell_error
+            silent! execute "head -1 " . expand("%") . " | grep '^*** WARNING : deprecated key derivation used.$'"
+            if ! v:shell_error
+                let l:outputEncrypted = l:outputEncrypted . " | tail +3"
+            endif
         endif
-    endfunction
 
-    call s:AttemptDecryptWithFilter("-salt -a -md sha256")
-    call s:AttemptDecryptWithFilter("-salt -md sha256")
-    call s:AttemptDecryptWithFilter("-salt -a -md md5")
-    call s:AttemptDecryptWithFilter("-salt -md md5")
-    " Don't bother with -nosalt and -md sha256 because those defaults
-    " never existed together in OpenSSL.
-    call s:AttemptDecryptWithFilter("-nosalt -a -md md5")
-    call s:AttemptDecryptWithFilter("-nosalt -md md5")
+        function! s:AttemptDecryptWithFilter(opts) closure
+            if ! l:success
+                execute "0,$d"
+                execute "normal i". l:a
+                execute "normal o"
+                silent! execute l:outputEncrypted
+                let l:expr = "0,$!openssl " . l:cipher . " " . a:opts . " -d -pass stdin"
+                " Replace the password and encrypted file with the decrypted file.
+                silent! execute l:expr
+                let l:success = ! v:shell_error
+            endif
+        endfunction
+
+        call s:AttemptDecryptWithFilter("-salt -a -md sha256")
+        call s:AttemptDecryptWithFilter("-salt -md sha256")
+        call s:AttemptDecryptWithFilter("-salt -a -md md5")
+        call s:AttemptDecryptWithFilter("-salt -md md5")
+        " Don't bother with -nosalt and -md sha256 because those defaults
+        " never existed together in OpenSSL.
+        call s:AttemptDecryptWithFilter("-nosalt -a -md md5")
+        call s:AttemptDecryptWithFilter("-nosalt -md md5")
+
+        let l:a="These are not the droids you're looking for."
+    endwhile
+    unlet l:a
 
     " Cleanup.
-    let l:a="These are not the droids you're looking for."
-    unlet l:a
     set nobin
     set cmdheight&
     set shellredir&
     set shell&
-    redraw!
-    if ! l:success
-        silent! 0,$y
-        silent! undo
-        execute "0,$d"
-        set undolevels&
-        redraw!
-        echohl ErrorMsg
-        echo "ERROR -- COULD NOT DECRYPT"
-        echo "You may have entered the wrong password or"
-        echo "your version of openssl may not have the given"
-        echo "cipher engine built-in. This may be true even if"
-        echo "the cipher is documented in the openssl man pages."
-        echo "DECRYPT EXPRESSION: " . l:defaultexpr
-        echohl None
-        throw "Unable to decrypt."
-    endif
     execute ":doautocmd BufReadPost ".expand("%:r")
     set undolevels&
     redraw!
