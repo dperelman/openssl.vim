@@ -329,9 +329,7 @@ function! s:OpenSSLWritePre()
     " Then do the actual encryption.
     silent! execute "0goto"
     silent! execute "normal i". l:a . "\n"
-    set shellredir=2>
     silent! execute l:expr . " 2>&1 >/dev/null"
-    set shellredir=>
     " Backup @" register and restore it afterward.
     let l:register_tmp = getreg('"', 1, 1)
     let l:register_tmp_mode = getregtype('"')
